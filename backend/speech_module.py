@@ -2,6 +2,7 @@ import azure.cognitiveservices.speech as speechsdk
 from config import Config
 import threading
 import creds
+import re
 
 speech_key, service_region = creds.azure_speech_key, "eastus"  # Microsoft Azure key
 speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
@@ -20,18 +21,10 @@ def detect_speech():
 def speak_phrase(phrase):
     global stopSpeaking
     # Split the phrase into sentences so long phrases can be spoken
-    sentences = []
-    sentence = ""
-    for char in phrase:
-        if char not in [". ", "! ", "? "]:
-            sentence += char
-        else:
-            sentence += char
-            sentences.append(sentence)
-            sentence = ""
+    phrase = str(phrase)
+    sentences = re.split(r'(?<=[.!?]) +', phrase)
 
-    if sentence != "":
-        sentences.append(sentence)
+    print(sentences)
 
     stopSpeaking = False
 
@@ -51,21 +44,11 @@ def speak_phrase(phrase):
 
 
 def speak_phrase_async(phrase):
-    def run_speech():
+    def run_speech(phrase):
         global stopSpeaking
         # Split the phrase into sentences so long phrases can be spoken
-        sentences = []
-        sentence = ""
-        for char in phrase:
-            if char not in [". ", "! ", "? "]:
-                sentence += char
-            else:
-                sentence += char
-                sentences.append(sentence)
-                sentence = ""
-
-            if sentence != "":
-                sentences.append(sentence)
+        phrase = str(phrase)
+        sentences = re.split(r'(?<=[.!?]) +', phrase)
 
         stopSpeaking = False
 
@@ -81,7 +64,7 @@ def speak_phrase_async(phrase):
                 '''
             speech_synthesizer.speak_ssml(ssml_string)
 
-    speech_thread = threading.Thread(target=run_speech)
+    speech_thread = threading.Thread(target=run_speech, args=(phrase,))
     speech_thread.start()
     return speech_thread
 

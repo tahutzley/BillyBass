@@ -50,6 +50,7 @@ function App() {
 
     const [hoveredElementID, setHoveredElementID] = useState<number>(-1);
     const [clickedID, setClickedID] = useState<number>(-1);
+    const [optionsMenuTitle, setOptionsMenuTitle] = useState<string>("");
 
     const [isHoveringPreviousConversation, setIsHoveringPreviousConversation] = useState<boolean>(false);
     const [isHoveringOptionsMenu, setIsHoveringOptionsMenu] = useState<boolean>(false);
@@ -318,10 +319,10 @@ function App() {
         const chatLogData = await axios.post("http://127.0.0.1:5000/api/get-chat-log", { logID })
 
         const newChatLog = chatLogData.data['messages'];
+        await axios.post("http://127.0.0.1:5000/api/reset-history", { newChatLog });
+        setCurrentResponseCounter(newChatLog.length - 1);
         setChatLog(newChatLog);
         setChatIndex(logID);
-        setCurrentResponseCounter(newChatLog.length - 1);
-        await axios.post("http://127.0.0.1:5000/api/reset-history", { newChatLog });
     }
 
     const handleHoveringEnter = (logID: number) => {
@@ -334,9 +335,11 @@ function App() {
         setHoveredElementID(-1);
     }
 
-    const handlePreviousResponseOptions = (logID: number) => {
+    const handlePreviousResponseOptions = async (logID: number) => {
         setShowOptionsMenu(true);
         setClickedID(() => logID);
+        const optionsTitle = await axios.post("http://127.0.0.1:5000/api/get-title", { logID });
+        setOptionsMenuTitle(optionsTitle.data['title']);
     }
 
     const handlePageClick = () => {
@@ -345,7 +348,6 @@ function App() {
 
     const handleChangePersonality = async (event: React.ChangeEvent<HTMLSelectElement>) => {
         const personality: string = event.target.value;
-
         await axios.post("http://127.0.0.1:5000/api/change-personality", { personality });
     }
 
@@ -382,8 +384,14 @@ function App() {
                               onMouseLeave={() => handleHoveringLeave()}
                               onClick={() => setIsHoveringPreviousConversation(false)}
                           >{title + logID}
-                              {chatIndex === logID || hoveredElementID === logID &&
-                                  <div className={'previous-response-title-options-background'} style = {{backgroundColor: isHoveringPreviousConversation || isHoveringOptionsMenu ? "#404d3e" : logID === chatIndex ? "#253022" : "inherit"}}></div>}
+                              {chatIndex === logID &&
+                              <div className={'previous-response-title-options-background'}
+                                   style = {{backgroundColor: "#253022"}}
+                              ></div>}
+                              {hoveredElementID === logID && hoveredElementID !== chatIndex &&
+                                  <div className={'previous-response-title-options-background'}
+                                       style = {{backgroundColor: "#404d3e"}}
+                                  ></div>}
                               {chatIndex === logID &&
                                   <MoreHorizIcon
                                   className={'previous-response-title-options'}
@@ -398,7 +406,7 @@ function App() {
                                   onClick={() => handlePreviousResponseOptions(logID)}/>}
                           </td>
                           {showOptionsMenu && clickedID === logID && (
-                              <div className={'options-menu'}>{chatLogHistory[logID - 1].title}</div>
+                              <div className={'options-menu'}>{optionsMenuTitle}</div>
                           )}
                       </tr>
                   ))}

@@ -119,8 +119,30 @@ def get_titles():
     )
 
 
-@app.route("/api/generate-title", methods=['POST'])
+@app.route("/api/get-title", methods=['POST'])
 def return_title():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    logID = request.get_json()['logID']
+    try:
+        cur.execute('SELECT title FROM "Chat Log History" WHERE "Chat Log History"."logID" = %s', (logID,))
+        row = cur.fetchone()
+        if row:
+            title = row[0]
+    except Exception as error:
+        title = str(error)
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify(
+        {
+            'title': title
+        }
+    )
+
+
+@app.route("/api/generate-title", methods=['POST'])
+def return_generated_title():
     title = generate_title(request.get_json()["text"])
     return jsonify(
         {
