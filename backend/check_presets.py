@@ -8,61 +8,100 @@ import re
 from config import Config
 from openai import OpenAI
 import creds
+import threading
+import time
 
 api_key = creds.openai_key  # OpenAI Key
 client = OpenAI(api_key=api_key)
 
+timers = {}
+timer_id = 0
 
-"""
-async def start_timer(h, m ,s):
-    await asyncio.sleep(3600 * h + 60 * m + s)
-    print(f"Timer {timer_id}: {h} hours, {m} minutes, {s} seconds later")
+class Timer(threading.Thread):
+    def __init__(self, h, m, s):
+        super().__init__()
+        self.total_time = h * 3600 + m * 60 + s
+        self.remaining_time = self.total_time
+        self.running = True
+
+    def run(self):
+        while self.remaining_time > 0 and self.running:
+            print(f"Time left: {self.remaining_time} seconds")
+            time.sleep(1)
+            self.remaining_time -= 1
+        if self.remaining_time <= 0:
+            print("Timer finished!")
+            self.running = False
+
+    def stop(self):
+        self.running = False
+
+    def add_time(self, h, m, s):
+        self.remaining_time += h * 3600 + m * 60 + s
+
+    def update_time(self, h, m, s):
+        self.total_time = h * 3600 + m * 60 + s
+        self.remaining_time = self.total_time
 
 
-def create_timer(timer_id, h, m, s):
-    task = asyncio.create_task(start_timer(timer_id, h, m, s))
-    if timers:
-        timer_id += 1
-        timers[timer_id] = {"task": task, "hours": h, "minutes": m, "seconds": s}
+def format_timer_response(h, m, s):
+    time_parts = []
+
+    if h > 0:
+        time_parts.append(f"{h} hours")
+    if m > 0:
+        time_parts.append(f"{m} minutes")
+    if s > 0:
+        time_parts.append(f"{s} seconds")
+
+    # Join the parts with commas and include the word "and" before the last time denomination if > 1
+    if len(time_parts) > 1:
+        formatted_time = ", ".join(time_parts[:-1]) + f" and {time_parts[-1]}"
     else:
-        timer_id = 1
-        timers[timer_id] = {"task": task, "hours": h, "minutes": m, "seconds": s}
-        timer_id += 1
-    return f"Timer {timer_id} set for {h} hours, {m} minutes, {s} seconds."
+        formatted_time = time_parts[0] if time_parts else ""
+
+    return formatted_time
+
+
+def create_timer(h, m, s):
+   global timer_id
+   if not timers:
+        timer_id = 0
+   new_timer = Timer(h, m, s)
+   timers[timer_id] = new_timer
+   timer_id += 1
+   new_timer.start()
+   response = f"Timer {timer_id} started for "
+   response += format_timer_response(h, m, s) + f"."
+   return response
 
 
 def update_timer(timer_id, h, m, s):
     if timer_id not in timers:
         return f"Timer {timer_id} not found."
-    timers[timer_id]["task"].cancel()
-    task = asyncio.create_task(start_timer(timer_id, h, m, s))
-    timers[timer_id] = {"task": task, "hours": h, "minutes": m, "seconds": s}
-    return f"Timer {timer_id} changed to {h} hours, {m} minutes, {s} seconds."
+    timer = timers[timer_id]
+    timer.update_time(h, m, s)
+    response = f"Timer {timer_id} changed to "
+    response += format_timer_response(h, m, s) + f"."
+    return response
+
+
+def add_to_timer(timer_id, h, m, s):
+    if timer_id not in timers:
+        return f"Timer {timer_id} not found."
+    timer = timers[timer_id]
+    timer.add_time(h, m, s)
+    response = f"Added "
+    response += format_timer_response(h, m, s) + f" to timer {timer_id}."
+    return response
 
 
 def delete_timer(timer_id):
     if timer_id not in timers:
         return f"Timer {timer_id} not found."
-    timers[timer_id]["task"].cancel()
-    del timers[timer_id]
+    timer = timers[timer_id]
+    timer.stop()
     return f"Timer {timer_id} removed."
-
-9. start_timer hours minutes seconds response_message - Start a timer. The text must include the specific time duration (e.g., "Set a timer for 5 minutes"), including whether it is in seconds, minutes, or hours.
-    replace hours with the number of hours given, minutes with the number of minutes given, and seconds with the number of seconds given. If no time_denomination is given, assume it is minutes
-    replace response_message with a message stating the timer has been started (e.g., "Timer for 5 minutes has been started", "Timer for 2 minutes and 30 seconds has been started")
-    (e.g., for 5 min timer -> "start_timer 0 5 0", for 2 min 30 sec timer -> "start_timer 0 2 30")
-10. delete_timer timer_id - Deleting the current or one of the set timers (e.g., "Remove timer 2, "Delete the timer", Assume timer 1 when not given a number)
-11. update_timer timer_id - Changing current countdown timer of set timer (e.g., "Add 3 minutes to timer 2", "Add 2 minutes to the timer", Assume timer 1 when not given a number)
-
-if intent.startswith("start_timer"):
-    intent = intent[12:]
-    print(intent)
-    h = int(intent[0])
-    m = int(intent[2])
-    s = int(intent[4])
-    start_timer(h, m, s)
-    return intent[6:]
-"""
 
 
 def is_all_specific_char(s, ch):
@@ -81,6 +120,13 @@ def determine_intent(message):
     6. skip_song - Skip to the next song. (e.g., skip, next)
     7. play_album- Play an album. The text must include the album name and artist if provided (e.g., "Play the album 'Thriller' by Michael Jackson").
     8. add_song_to_queue - Add a song to the queue. The text must include the song name and artist if provided (e.g., "Add 'Blinding Lights' by The Weeknd to the queue").
+    9. start_timer hours minutes seconds - Start a timer. The text must include the specific time duration (e.g., "Set a timer for 5 minutes"), including whether it is in seconds, minutes, or hours.
+        replace hours with the number of hours given, minutes with the number of minutes given, and seconds with the number of seconds given. If no time_denomination is given, assume it is minutes
+        (e.g., for 5 min timer -> "start_timer 0 5 0", for 2 min 30 sec timer -> "start_timer 0 2 30")
+    10. delete_timer timer_id - Deleting the current or one of the set timers (e.g., "Remove timer 2, "Delete the timer", Assume timer 1 when not given a number)
+    11. update_timer timer_id hours minutes seconds - Changing current countdown timer of set timer (e.g., "Change timer 2 to 10 minutes", "Make the timer 3 minutes", Assume timer 1 when not given a number)
+    12. add_to_timer timer_id hours minutes seconds - Adding time to allotted timer (e.g.)
+        For intents 11 and 12, similar to intent 9, replace hours minutes seconds with numbers representing how many of each is to be added
 
     Determine the intent of the following statement:
 
@@ -157,5 +203,15 @@ def check_presets(message):
 
     if intent == "add_song_to_queue":
         return add_song_to_queue(refactored_message)
+
+    if intent.startswith("start_timer"):
+        intent = intent[12:]
+        intent = intent.split()
+        h = int(intent[0])
+        m = int(intent[1])
+        s = int(intent[2])
+        print(intent)
+        timer_created = create_timer(h, m, s)
+        return timer_created
 
     return preset_message
