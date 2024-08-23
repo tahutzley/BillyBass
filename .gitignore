@@ -1,3 +1,6 @@
+# Virtual Environment
+venv
+
 # API Keys
 creds.py
 .cache

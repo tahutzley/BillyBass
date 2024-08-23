@@ -202,14 +202,13 @@ function App() {
             if (isContinuouslyListening && !isLoading) {
                 setIsLoading(true);
                 try {
-                    console.log("Here");
                     await axios.get("http://127.0.0.1:5000/api/start-continuous-listening");
                     triggerWakeWordAnimation();
 
                     const response = await axios.get("http://127.0.0.1:5000/api/respond-to-user");
                     const chatLogData = response.data["chat_log"];
 
-                    if (chatLogData !== "") {
+                    if (chatLogData[0] !== "") {
                         setChatLog(currentChatLog => [...currentChatLog, chatLogData[0], chatLogData[1]])
                         setWakeWordDetected(false);
                     }
