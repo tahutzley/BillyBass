@@ -17,8 +17,9 @@ token = oauth_object.get_access_token(as_dict=False)  # Change to handle token a
 spotifyObject = spotipy.Spotify(auth=token)
 
 
-def play_song(song):
-    results = spotifyObject.search(song, 1, 0, "track")
+def play_song(song, artist):
+    query = f"track:{song} artist:{artist}"
+    results = spotifyObject.search(query, 1, 0, "track")
     songs_dict = results['tracks']
     song_items = songs_dict['items']
     if song_items:
