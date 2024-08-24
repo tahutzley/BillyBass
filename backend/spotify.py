@@ -19,7 +19,7 @@ spotifyObject = spotipy.Spotify(auth=token)
 
 def play_song(song, artist):
     query = f"track:{song} artist:{artist}"
-    results = spotifyObject.search(query, 1, 0, "track")
+    results = spotifyObject.search(query, 3, 0, "track")
     songs_dict = results['tracks']
     song_items = songs_dict['items']
     if song_items:
