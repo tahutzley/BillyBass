@@ -113,7 +113,10 @@ def determine_intent(message):
     You are an AI assistant that recognizes user intents related to music and timer functions. Below are the possible intents you can recognize:
 
     1. none - The text does not match any of the intents.
-    2. play_song - Play a song. The text must include the song name and artist if provided (e.g., "Play 'Shape of You' by Ed Sheeran").
+    2. play_song song_name artist - Play a song. The text must include the song name and artist if provided (e.g., "Play 'Shape of You' by Ed Sheeran").
+        replace the word song_name with the given song name and artist with the artist of the song. If no artist is given, it is your job to give the artist name
+        for the song name include an underscore between words instead of spaces, for the artist include an underscore between words instead of spaces
+        but leave a space between song and artist, and dont include any other words
     3. pause_song - Pause the currently playing song. (e.g., pause, pause song, stop)
     4. unpause_song - Unpause the currently paused song. (e.g., unpause, play, start)
     5. repeat_song - Repeat/loop the currently playing song. (e.g., repeat, play again, loop)
@@ -196,13 +199,18 @@ def check_presets(message):
         return "Repeating song"
 
     if intent == "play_album":
-        return play_album(refactored_message)
+        return play_album(message)
 
-    if intent == "play_song":
-        return play_song(refactored_message)
+    if intent.startswith("play_song"):
+        intent = intent[10:]
+        intent = intent.split()
+        if len(intent) > 1:
+            return play_song(intent[0], intent[1])
+        else:
+            return play_song(intent[0], "")
 
     if intent == "add_song_to_queue":
-        return add_song_to_queue(refactored_message)
+        return add_song_to_queue(message)
 
     if intent.startswith("start_timer"):
         intent = intent[12:]
