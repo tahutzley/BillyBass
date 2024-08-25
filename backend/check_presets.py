@@ -23,6 +23,7 @@ class Timer(threading.Thread):
         self.total_time = h * 3600 + m * 60 + s
         self.remaining_time = self.total_time
         self.running = True
+        self.timer_id = timer_id + 1
 
     def run(self):
         while self.remaining_time > 0 and self.running:
@@ -32,6 +33,7 @@ class Timer(threading.Thread):
         if self.remaining_time <= 0:
             print("Timer finished!")
             self.running = False
+            del timers[self.timer_id]
 
     def stop(self):
         self.running = False
@@ -68,8 +70,7 @@ def create_timer(h, m, s):
    if not timers:
         timer_id = 0
    new_timer = Timer(h, m, s)
-   timers[timer_id] = new_timer
-   timer_id += 1
+   timers[new_timer.timer_id] = new_timer
    new_timer.start()
    response = f"Timer {timer_id} started for "
    response += format_timer_response(h, m, s) + f"."
