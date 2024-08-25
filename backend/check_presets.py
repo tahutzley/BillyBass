@@ -122,7 +122,8 @@ def determine_intent(message):
     5. repeat_song - Repeat/loop the currently playing song. (e.g., repeat, play again, loop)
     6. skip_song - Skip to the next song. (e.g., skip, next)
     7. play_album- Play an album. The text must include the album name and artist if provided (e.g., "Play the album 'Thriller' by Michael Jackson").
-    8. add_song_to_queue - Add a song to the queue. The text must include the song name and artist if provided (e.g., "Add 'Blinding Lights' by The Weeknd to the queue").
+    8. add_song_to_queue song_name artist - Add a song to the queue.
+        Follow the same rules as the play_song intent
     9. start_timer hours minutes seconds - Start a timer. The text must include the specific time duration (e.g., "Set a timer for 5 minutes"), including whether it is in seconds, minutes, or hours.
         replace hours with the number of hours given, minutes with the number of minutes given, and seconds with the number of seconds given. If no time_denomination is given, assume it is minutes
         (e.g., for 5 min timer -> "start_timer 0 5 0", for 2 min 30 sec timer -> "start_timer 0 2 30")
@@ -175,15 +176,19 @@ def check_presets(message):
         return preset_message
 
     if intent == "skip_song":
-        spotifyObject.next_track(device_id=device_id)
-        spotifyObject.start_playback(device_id=device_id)
-        Config.current_music_stream = True
-        return "Playing next track"
+        if Config.songs_in_queue > 0:
+            spotifyObject.next_track(device_id=device_id)
+            spotifyObject.start_playback(device_id=device_id)
+            Config.current_music_stream = True
+            return "Playing next track"
+        else:
+            return "No songs in queue"
 
     if intent == "unpause_song":
-        spotifyObject.start_playback(device_id=device_id)
-        Config.current_music_stream = True
-        return "Resuming song"
+        if Config.current_music_stream == False:
+            spotifyObject.start_playback(device_id=device_id)
+            Config.current_music_stream = True
+            return "Resuming song"
 
     if intent == "pause_song":
         try:
@@ -199,7 +204,9 @@ def check_presets(message):
         return "Repeating song"
 
     if intent == "play_album":
-        return play_album(message)
+        album_response = play_album(message)
+        Config.songs_in_queue += album_response[1]
+        return album_response[0]
 
     if intent.startswith("play_song"):
         intent = intent[10:]
@@ -209,8 +216,14 @@ def check_presets(message):
         else:
             return play_song(intent[0], "")
 
-    if intent == "add_song_to_queue":
-        return add_song_to_queue(message)
+    if intent.startswith("add_song_to_queue"):
+        Config.songs_in_queue += 1
+        intent = intent[18:]
+        intent = intent.split()
+        if len(intent) > 1:
+            return add_song_to_queue(intent[0], intent[1])
+        else:
+            return add_song_to_queue(intent[0], "")
 
     if intent.startswith("start_timer"):
         intent = intent[12:]

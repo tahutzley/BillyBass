@@ -9,7 +9,6 @@ import psycopg2
 app = Flask(__name__)
 CORS(app)
 
-
 def get_db_connection():
     if 'db_conn' not in g:
         g.db_conn = psycopg2.connect(
