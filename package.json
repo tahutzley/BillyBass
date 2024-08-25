@@ -14,11 +14,12 @@
     "@emotion/styled": "^11.11.5",
     "@mui/icons-material": "^5.15.19",
     "@mui/material": "^5.15.19",
-    "axios": "^1.7.2",
+    "axios": "^1.7.5",
     "compromise": "^14.13.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",
