@@ -1,9 +1,8 @@
 from spotify import \
     spotifyObject, \
     device_id, \
-    play_song, \
-    play_album, \
-    add_song_to_queue
+    find_album, \
+    find_song
 import re
 from config import Config
 from openai import OpenAI
@@ -17,13 +16,64 @@ client = OpenAI(api_key=api_key)
 timers = {}
 timer_id = 0
 
+def create_playlist():
+    user_id = spotifyObject.me()['id']
+    playlist = spotifyObject.user_playlist_create(
+        user = user_id,
+        name = "Billy Playlist",
+        public = False,
+        description = "Playlist for session songs"
+    )
+    return playlist['id']
+
+
+class Music:
+    playlist_id = None
+
+    def __init__(self, name, artist, uri):
+        self.name = name
+        self.artist = artist
+        self.uri = uri
+
+    def play_song(self):
+        self.add_to_playlist()
+        spotifyObject.start_playback(context_uri=f"spotify:playlist:{Music.playlist_id}", device_id=device_id)
+        return f"Now playing, {self.name} by {self.artist}."
+
+    def add_song_to_queue(self):
+        self.add_to_playlist()
+        Config.songs_in_queue += 1
+        return f"{self.name} by {self.artist} added to the queue."
+
+    def add_to_playlist(self):
+        if Music.playlist_id == None:
+            Music.playlist_id = create_playlist()
+        spotifyObject.playlist_add_items(Music.playlist_id, [self.uri])
+
+
+def add_album_to_playlist(album_tracks, name):
+    if Music.playlist_id == None:
+        Music.playlist_id = create_playlist()
+
+    track_uris = [track['uri'] for track in album_tracks]
+    Config.songs_in_queue += len(album_tracks)
+    artist = album_tracks[0]['artist']
+
+    spotifyObject.playlist_add_items(Music.playlist_id, track_uris)
+    spotifyObject.start_playback(context_uri=f"spotify:playlist:{Music.playlist_id}", device_id=device_id)
+    return f"Now playing, {name} by {artist}."
+
+
 class Timer(threading.Thread):
     def __init__(self, h, m, s):
+        global timer_id
+        timer_id += 1
         super().__init__()
         self.total_time = h * 3600 + m * 60 + s
         self.remaining_time = self.total_time
         self.running = True
-        self.timer_id = timer_id + 1
+        self.timer_id = timer_id
+
 
     def run(self):
         while self.remaining_time > 0 and self.running:
@@ -70,15 +120,18 @@ def create_timer(h, m, s):
    if not timers:
         timer_id = 0
    new_timer = Timer(h, m, s)
+   print(new_timer.timer_id)
    timers[new_timer.timer_id] = new_timer
    new_timer.start()
    response = f"Timer {timer_id} started for "
    response += format_timer_response(h, m, s) + f"."
+   print(timers)
+   print(timers[timer_id])
    return response
 
 
 def update_timer(timer_id, h, m, s):
-    if timer_id not in timers:
+    if timer_id not in timers.keys():
         return f"Timer {timer_id} not found."
     timer = timers[timer_id]
     timer.update_time(h, m, s)
@@ -102,6 +155,7 @@ def delete_timer(timer_id):
         return f"Timer {timer_id} not found."
     timer = timers[timer_id]
     timer.stop()
+    del timers[timer_id]
     return f"Timer {timer_id} removed."
 
 
@@ -122,7 +176,8 @@ def determine_intent(message):
     4. unpause_song - Unpause the currently paused song. (e.g., unpause, play, start)
     5. repeat_song - Repeat/loop the currently playing song. (e.g., repeat, play again, loop)
     6. skip_song - Skip to the next song. (e.g., skip, next)
-    7. play_album- Play an album. The text must include the album name and artist if provided (e.g., "Play the album 'Thriller' by Michael Jackson").
+    7. play_album album_name artist- Play an album. The text must include the album name and artist if provided (e.g., "Play 'Pinktape' by Lil Uzi Vert").
+        Follow the same rules as the play_song intent but for album names
     8. add_song_to_queue song_name artist - Add a song to the queue.
         Follow the same rules as the play_song intent
     9. start_timer hours minutes seconds - Start a timer. The text must include the specific time duration (e.g., "Set a timer for 5 minutes"), including whether it is in seconds, minutes, or hours.
@@ -176,6 +231,47 @@ def check_presets(message):
     if intent == "none":
         return preset_message
 
+    if intent.startswith("play_song"):
+        intent = intent[10:]
+        intent = intent.split()
+        if len(intent) > 1:
+            song_data = find_song(intent[0], intent[1])
+        else:
+            song_data = find_song(intent[0], "")
+
+        if song_data is None:
+            return "No available songs found"
+
+        song = Music(song_data['song_name'], song_data['artist'], song_data['uri'])
+        return song.play_song()
+
+    if intent.startswith("play_album"):
+        intent = intent[11:]
+        intent = intent.split()
+        if len(intent) > 1:
+            tracks, name = find_album(intent[0], intent[1])
+        else:
+            tracks, name = find_album(intent[0], "")
+
+        if tracks is None:
+            return "No available songs found"
+
+        return add_album_to_playlist(tracks, name)
+
+    if intent.startswith("add_song_to_queue"):
+        intent = intent[18:]
+        intent = intent.split()
+        if len(intent) > 1:
+            song_data = find_song(intent[0], intent[1])
+        else:
+            song_data = find_song(intent[0], "")
+
+        if song_data is None:
+            return "No available songs found"
+
+        song = Music(song_data['song_name'], song_data['artist'], song_data['uri'])
+        return song.add_song_to_queue()
+
     if intent == "skip_song":
         if Config.songs_in_queue > 0:
             spotifyObject.next_track(device_id=device_id)
@@ -190,6 +286,8 @@ def check_presets(message):
             spotifyObject.start_playback(device_id=device_id)
             Config.current_music_stream = True
             return "Resuming song"
+        else:
+            return "No song to unpause"
 
     if intent == "pause_song":
         try:
@@ -204,28 +302,6 @@ def check_presets(message):
         Config.current_music_stream = True
         return "Repeating song"
 
-    if intent == "play_album":
-        album_response = play_album(message)
-        Config.songs_in_queue += album_response[1]
-        return album_response[0]
-
-    if intent.startswith("play_song"):
-        intent = intent[10:]
-        intent = intent.split()
-        if len(intent) > 1:
-            return play_song(intent[0], intent[1])
-        else:
-            return play_song(intent[0], "")
-
-    if intent.startswith("add_song_to_queue"):
-        Config.songs_in_queue += 1
-        intent = intent[18:]
-        intent = intent.split()
-        if len(intent) > 1:
-            return add_song_to_queue(intent[0], intent[1])
-        else:
-            return add_song_to_queue(intent[0], "")
-
     if intent.startswith("start_timer"):
         intent = intent[12:]
         intent = intent.split()
@@ -235,5 +311,27 @@ def check_presets(message):
         print(intent)
         timer_created = create_timer(h, m, s)
         return timer_created
+
+    if intent.startswith("delete_timer"):
+        timer_id = int(intent[13:])
+        return delete_timer(timer_id)
+
+    if intent.startswith("update_timer"):
+        intent = intent[13:]
+        intent = intent.split()
+        timer_id = int(intent[0])
+        h = int(intent[1])
+        m = int(intent[2])
+        s = int(intent[3])
+        return update_timer(timer_id, h, m ,s)
+
+    if intent.startswith("add_to_timer"):
+        intent = intent[13:]
+        intent = intent.split()
+        timer_id = int(intent[0])
+        h = int(intent[1])
+        m = int(intent[2])
+        s = int(intent[3])
+        return add_to_timer(timer_id, h, m ,s)
 
     return preset_message

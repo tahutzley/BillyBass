@@ -43,9 +43,10 @@ def predict(message):
         model='gpt-3.5-turbo',
         messages=history_openai_format,
         temperature=1.1, # Randomness of messages, range: 0-2
-        frequency_penalty = 1.5, # Higher frequency penalty discourages the model from repeating the same words or phrases too frequently, range: -2-2
-        presence_penalty = 1.5 # Higher presence penalty encourages use of diverse range of tokens, range: -2-2
     )
+
+    """ frequency_penalty = 1.5, # Higher frequency penalty discourages the model from repeating the same words or phrases too frequently, range: -2-2
+        presence_penalty = 1.5 # Higher presence penalty encourages use of diverse range of tokens, range: -2-2 """
 
     chat_response = response.choices[0].message.content
     # History for OpenAI AI Message

@@ -16,6 +16,7 @@ cool_down_period = 2  # seconds
 
 def recognized(args):
     global text, chat_response
+    print(args.result.text)
     if "Hey, Billy" in args.result.text:
         stop_speaking()
         pause_music()
