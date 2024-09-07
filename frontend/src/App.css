@@ -138,14 +138,15 @@ button:hover {
 
 .personality-modifier-selector {
   display: flex;
-  background: none;
+  background: #8D5C22;
+  border-radius: 10px;
+  height: 35px;
+  width: 165px;
   border: none;
   cursor: pointer;
-  appearance: none;
-}
-
-.personality-modifier-chevron {
-  background: none;
+  font-size: 15px;
+  color: white;
+  font-weight: bold;
 }
 
 .response-box-container {

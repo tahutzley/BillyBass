@@ -1,7 +1,7 @@
 from openai import OpenAI
 from check_presets import check_presets
 from config import Config
-from personalities import default, insane, academic
+from personalities import default, insane, academic, boring
 import creds
 
 api_key = creds.openai_key  # OpenAI Key
@@ -21,6 +21,8 @@ def change_personality(personality):
         history_openai_format = insane
     elif personality == "academic":
         history_openai_format = academic
+    elif personality == "boring":
+        history_openai_format = boring
 
     history_openai_format += temp_chat_log
 

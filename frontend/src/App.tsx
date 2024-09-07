@@ -419,11 +419,13 @@ function App() {
                       id="personality-selector"
                       onChange={handleChangePersonality}
                   >
+                      <optgroup label= "Choose Your Billy!">
                       <option value="default">Default Billy</option>
                       <option value="insane">BAKA Billy</option>
                       <option value="academic">Academic Billy</option>
+                      <option value="boring">Boring Billy</option>
+                      </optgroup>
                   </select>
-                  <span className="personality-modifier-chevron">👇</span>
               </div>
               <div className={'chat-log-container'} ref={chatLogRef}>
                   {chatLog.map((message, idx) => {
