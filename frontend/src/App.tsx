@@ -288,11 +288,13 @@ function App() {
         const tempUserInput = chatLog[chatLog.length - 2];
 
         const newMessages = chatLog.slice(0, -1);
+        console.log(newMessages)
         setChatLog(currentChatLog => currentChatLog.slice(0, -1));
 
         const chatResponse = await axios.post("http://127.0.0.1:5000/api/response", { tempUserInput });
         const chatGPTResponse = chatResponse.data["response"][0];
         setChatLog(currentChatLog => [...currentChatLog, chatGPTResponse]);
+        newMessages.push(chatGPTResponse);
 
         await axios.post("http://127.0.0.1:5000/api/reset-history", { newChatLog: chatLog });
         await axios.post("http://127.0.0.1:5000/api/add-messages", { newMessages, logID: chatIndex });
